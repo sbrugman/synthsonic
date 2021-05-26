@@ -1,5 +1,5 @@
 """
-Script to compare variations of Synthsonic. Used for the paper's ablation study / comparing extensions across datasets.	
+Script to compare variations of Synthsonic. Used for the paper's ablation study / comparing extensions across datasets.
 """
 import multiprocessing
 import time
@@ -114,24 +114,32 @@ settings = {
     # Real
     # ============================================
     'census': {
-
+        'pdf_args': {
+            'estimator_type': "auto-tan",
+        },
     },
     'credit': {
-
+        'pdf_args': {
+            'estimator_type': "auto-tan",
+        },
     },
     'adult': {
         'pdf_args': {
             'test_size': 0.25,
             'edge_weights_fn': normalized_mutual_info_score,
+            'estimator_type': "auto-tan",
         },
     },
     'intrusion': {
-
+        'pdf_args': {
+            'estimator_type': "auto-tan",
+        },
     },
     'covtype': {
-        'pdf_args':{
+        'pdf_args': {
             'n_uniform_bins': 40,
             'test_size': 0.25,
+            'estimator_type': "auto-tan",
         },
     },
     'news': {
@@ -155,10 +163,9 @@ choices = [
 dsets_bn = ['child', 'asia', 'insurance', 'alarm']
 dsets_gm = ['ring', 'gridr', 'grid']
 dsets_rl = ['adult', 'news', 'covtype', 'intrusion', 'credit', 'census']
-dsets_all = dsets_gm + dsets_bn + dsets_rl
 
-dsets = ['adult']
-dsets = ['grid']
+dsets = ['census']
+
 
 def get_label_col(dataset_name):
     _, _, meta, _, _ = load_dataset(dataset_name, benchmark=True)
@@ -170,7 +177,7 @@ def get_label_col(dataset_name):
 
 def factory(my_sets, my_ablation, dataset):
     class BaseClass(BaseSynthesizer):
-        def __init__(self, iterations):
+        def __init__(self, iterations=None):
             self.random_state = my_sets['random_state'] + iterations * 1000
 
         def fit(self, data, categorical_columns=tuple(), ordinal_columns=tuple()):
@@ -268,23 +275,23 @@ for dataset_name in dsets:
         all_synthesizers.append(factory(deepcopy(current_settings), ablation, dataset_name))
 
     try:
+        time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+
         datasets = [dataset_name]
         scores = run(
             synthesizers=all_synthesizers,
             datasets=datasets,
             iterations=1,
             add_leaderboard=False,
-            cache_dir="ablation/",
-            # workers=int(multiprocessing.cpu_count() / 2)
+            cache_dir=f"ablation/{dataset_name}_{time_str}/raw/",
         )
-        time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
-        scores.to_csv(f"ablation/scores_{dataset_name}_{time_str}.csv")
+        scores.to_csv(f"ablation/{dataset_name}_{time_str}/scores.csv")
 
         df = scores.copy(deep=True)
         total = df.loc[f'Synthsonic[all][{dataset_name}]'].copy()
         df = df - total.values.squeeze()
         df.loc[f'Synthsonic[all][{dataset_name}]'] = total
-        df.to_csv(f"ablation/diff_scores_{dataset_name}_{time_str}.csv")
+        df.to_csv(f"ablation/{dataset_name}_{time_str}/scores_diff.csv")
     except ValueError:
         print(f"Failed to compute {dataset_name} scores")
     del all_synthesizers
